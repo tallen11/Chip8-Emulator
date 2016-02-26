@@ -5,6 +5,22 @@
 Emulator::Emulator()
 {
 	this->reset();
+	procs[0] = &Emulator::p_0_baseProcs;
+	procs[1] = &Emulator::p_1_JP;
+	procs[2] = &Emulator::p_2_CALL;
+	procs[3] = &Emulator::p_3_SE;
+	procs[4] = &Emulator::p_4_SNE;
+	procs[5] = &Emulator::p_5_SE;
+	procs[6] = &Emulator::p_6_LD;
+	procs[7] = &Emulator::p_7_ADD;
+	procs[8] = &Emulator::p_8_procs;
+	procs[9] = &Emulator::p_9_SNE;
+	procs[10] = &Emulator::p_A_LDI;
+	procs[11] = &Emulator::p_B_JPV;
+	procs[12] = &Emulator::p_C_RND;
+	procs[13] = &Emulator::p_D_DRW;
+	procs[14] = &Emulator::p_E_procs;
+	procs[15] = &Emulator::p_F_procs;
 }
 
 Emulator::~Emulator()
@@ -32,6 +48,7 @@ void Emulator::reset()
 	this->soundTimer = 0;
 	this->PC = 0;
 	this->SP = 0;
+	this->opcode = 0;
 }
 
 void Emulator::loadProgram(std::string filename)
@@ -51,6 +68,7 @@ void Emulator::loadProgram(std::string filename)
 				this->memory[i + MEMORY_PROGRAM_START] = buffer[i];
 			}
 
+			this->PC = MEMORY_PROGRAM_START;
 			this->hasProgram = true;
 		} else {
 			std::cout << "Read failed: read " << file.gcount() << " bytes" << std::endl;
@@ -61,7 +79,186 @@ void Emulator::loadProgram(std::string filename)
 	}
 }
 
+void Emulator::fetch()
+{
+	uint8_t instr1 = this->memory[this->PC];
+	uint8_t instr2 = this->memory[this->PC + 1];
+	this->PC += 2;
+	opcode = (instr1 << 8) | instr2;
+}
+
+uint16_t Emulator::getAddress()
+{
+	return this->opcode & 0x0FFF;
+}
+
 void Emulator::step()
+{
+	this->fetch();
+	(this->*procs[(opcode & 0xF000) >> 12])();
+	// uint16_t code = (this->opcode & 0xF000) >> 12;
+	// switch (code) {
+	// 	case 0x0:
+	// 		if (opcode == 0x00E0) {
+	// 			// Clear the display
+	// 			std::cout << "Clear display!" << std::endl;
+	// 		} else if (opcode == 0x00EE) {
+	// 			// RETurn from subroutine
+	// 			PC = stack[SP];
+	// 			SP--;
+	// 		} else {
+	// 			// SYS call
+	// 			uint16_t addr = this->getAddress();
+	// 			stack[SP] = PC;
+	// 			SP++;
+	// 			PC = addr;
+	// 		}
+	// 		break;
+
+	// 	case 0x1:
+	// 		PC = this->getAddress();
+	// 		break;
+
+	// 	case 0x2:
+	// 		stack[SP] = PC;
+	// 		SP++;
+	// 		PC = this->getAddress();
+	// 		break;
+
+	// 	case 0x3:
+	// 		uint8_t x = (opcode & 0x0F00) >> 8;
+	// 		uint16_t kk = opcode & 0x00FF
+	// 		if (V[x] == kk) {
+	// 			PC += 2;
+	// 		}
+	// 		break;
+
+	// 	case 0x4:
+	// 		uint8_t x = (opcode & 0x0F00) >> 8;
+	// 		uint16_t kk = opcode & 0x00FF
+	// 		if (V[x] != kk) {
+	// 			PC += 2;
+	// 		}
+	// 		break;
+
+	// 	case 0x5:
+	// 		uint8_t x = (opcode & 0x0F00) >> 8;
+	// 		uint8_t y = (opcode & 0x00F0) >> 4;
+	// 		if (V[x] == V[y]) {
+	// 			PC += 2;
+	// 		}
+	// 		break;
+
+	// 	case 0x6:
+	// 		std::cout << "6 TEST" << std::endl;
+	// 		uint8_t x = (opcode & 0x0F00) >> 8;
+	// 		uint16_t kk = opcode & 0x00FF;
+	// 		V[x] = kk;
+	// 		break;
+
+	// 	case 0x7:
+	// 		uint8_t x = (opcode & 0x0F00) >> 8;
+	// 		uint16_t kk = opcode & 0x00FF;
+	// 		V[x] += kk;
+	// 		break;
+
+	// 	case 0x8:
+	// 		break;
+	// }
+}
+
+
+// #pragma mark - Procedures
+
+void Emulator::p_0_baseProcs()
+{
+	if (opcode == 0x00E0) {
+		// Clear the display
+		std::cout << "Clear display!" << std::endl;
+	} else if (opcode == 0x00EE) {
+		// RETurn from subroutine
+		PC = stack[SP];
+		SP--;
+	} else {
+		// SYS call
+		uint16_t addr = this->getAddress();
+		stack[SP] = PC;
+		SP++;
+		PC = addr;
+	}
+}
+
+void Emulator::p_1_JP()
+{
+
+}
+
+void Emulator::p_2_CALL()
+{
+
+}
+
+void Emulator::p_3_SE()
+{
+
+}
+
+void Emulator::p_4_SNE()
+{
+
+}
+
+void Emulator::p_5_SE()
+{
+
+}
+
+void Emulator::p_6_LD()
+{
+	
+}
+
+void Emulator::p_7_ADD()
+{
+
+}
+
+void Emulator::p_8_procs()
+{
+
+}
+
+void Emulator::p_9_SNE()
+{
+
+}
+
+void Emulator::p_A_LDI()
+{
+
+}
+
+void Emulator::p_B_JPV()
+{
+
+}
+
+void Emulator::p_C_RND()
+{
+
+}
+
+void Emulator::p_D_DRW()
+{
+
+}
+
+void Emulator::p_E_procs()
+{
+
+}
+
+void Emulator::p_F_procs()
 {
 
 }

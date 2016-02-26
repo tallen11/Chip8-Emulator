@@ -29,6 +29,35 @@ private:
 	uint8_t SP;				// Stack pointer
 
 	uint16_t stack[16];		// Stack
+	uint16_t opcode;		// Current opcode
+
+	void fetch();
+	uint16_t getAddress();
+
+	// Experimental!!!
+	void (Emulator::*procs[16])();
+	void p_0_baseProcs();
+	void p_1_JP();
+	void p_2_CALL();
+	void p_3_SE();
+	void p_4_SNE();
+	void p_5_SE();
+	void p_6_LD();
+	void p_7_ADD();
+	void p_8_procs();
+	void p_9_SNE();
+	void p_A_LDI();
+	void p_B_JPV();
+	void p_C_RND();
+	void p_D_DRW();
+	void p_E_procs();
+	void p_F_procs();
+
+	// void SYS(uint16_t instruction);
+	// void CLS(uint16_t instruction);
+	// void RET(uint16_t instruction);
+	// void JP(uint16_t instruction);
+	// void CALL(uint16_t instruction);
 };
 
 #endif // EMULATOR_HPP
