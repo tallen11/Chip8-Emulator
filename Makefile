@@ -4,10 +4,10 @@ OBJS=Emulator.o Main.o
 CXXFLAGS=-Wall -Wextra -pedantic -std=c++14 $(DEBUG)
 
 all: $(OBJS)
-	$(CXX) $(OBJS) -o bin/emu
+	$(CXX) $(OBJS) -lncurses -o bin/emu
 
 run: $(OBJS)
-	$(CXX) $(OBJS) -o bin/emu
+	$(CXX) $(OBJS) -lncurses -o bin/emu
 	./bin/emu
 
 Emulator.o: Emulator.hpp Emulator.cpp

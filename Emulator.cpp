@@ -2,6 +2,23 @@
 #include <fstream>
 #include <iostream>
 #include <random>
+#include <ncurses.h>
+
+void p(std::string msg) {
+	// std::cout << msg << std::endl;
+}
+
+void Emulator::inf()
+{
+	std::cout << "Has prog: " << this->hasProgram << std::endl;
+	std::cout << "I: " << I << std::endl;
+	std::cout << "Delay Timer: " << (int)delayTimer << std::endl;
+	std::cout << "Sound Timer: " << (int)soundTimer << std::endl;
+	std::cout << "PC: " << PC << std::endl;
+	std::cout << "SP: " << (int)SP << std::endl;
+	std::cout << "Opcode: " << opcode << std::endl;
+	std::cout << "Should Draw: " << shouldDraw << std::endl;
+}
 
 Emulator::Emulator()
 {
@@ -50,8 +67,12 @@ void Emulator::reset()
 		}
 	}
 
-	for (uint16_t i = 0; i < MEMORY_PROGRAM_START; ++i) {
-		this->memory[i] = 0;
+	for (uint16_t i = 0; i < MEMORY_END; ++i) {
+		if (i < 80) {
+			this->memory[i] = fontset[i];
+		} else {
+			this->memory[i] = 0;
+		}
 	}
 
 	for (uint8_t i = 0; i < 16; ++i) {
@@ -70,8 +91,17 @@ void Emulator::reset()
 	this->SP = 0;
 	this->opcode = 0;
 	this->shouldDraw = false;
+	this->waiting = false;
 
 	srand(time(NULL));
+}
+
+void Emulator::startDisplay()
+{
+	initscr();
+	noecho();
+	curs_set(FALSE);
+	clear();
 }
 
 void Emulator::loadProgram(std::string filename)
@@ -106,8 +136,13 @@ void Emulator::fetch()
 {
 	uint8_t instr1 = this->memory[this->PC];
 	uint8_t instr2 = this->memory[this->PC + 1];
-	this->PC += 2;
+	if (!waiting) {
+		this->PC += 2;
+	}
+
 	opcode = (instr1 << 8) | instr2;
+
+	// std::cout << PC % 2 << std::endl;
 }
 
 uint16_t Emulator::getAddress()
@@ -122,15 +157,35 @@ bool Emulator::getShouldDraw()
 
 void Emulator::draw()
 {
-	std::cout << "Drawing!" << std::endl;
+	for (uint8_t x = 0; x < 64; ++x) {
+		for (uint8_t y = 0; y < 32; ++y) {
+			mvprintw(x, y, display[y][x] == 1 ? "#" : " ");
+		}
+	}
+
+	refresh();
+
 	shouldDraw = false;
 }
 
 void Emulator::step()
 {
-	// std::cout << PC << std::endl;
 	this->fetch();
 	(this->*procs[(opcode & 0xF000) >> 12])();
+
+	if (!waiting) {
+		if (delayTimer > 0) {
+			--delayTimer;
+		}
+
+		if (soundTimer > 0) {
+			if (soundTimer == 1) {
+				p("BUZZ");
+			}
+
+			--soundTimer;
+		}
+	}
 }
 
 
@@ -140,22 +195,29 @@ void Emulator::p_0_baseProcs()
 {
 	if (opcode == 0x00E0) {
 		// Clear the display
-		std::cout << "Clear display!" << std::endl;
+		//std::cout << "Clear display!" << std::endl;
+		p("CLR_0");
+		for (uint8_t x = 0; x < 64; ++x) {
+			for (uint8_t y = 0; y < 32; ++y) {
+				display[x][y] = 0;
+			}
+		}
+
+		shouldDraw = true;
 	} else if (opcode == 0x00EE) {
 		// RETurn from subroutine
-		PC = stack[SP];
+		p("RET_0");
+		// std::cout << "\t\tstack[SP]: " << stack[SP] << std::endl;
 		SP--;
+		PC = stack[SP];
 	} else {
 		// SYS call
+		p("CALL_0");
 		uint16_t addr = this->getAddress();
 		stack[SP] = PC;
 		SP++;
 		PC = addr;
 	}
-}
-
-void p(std::string msg) {
-	// std::cout << msg << std::endl;
 }
 
 void Emulator::p_1_JP()
@@ -262,15 +324,17 @@ void Emulator::p_C_RND()
 void Emulator::p_D_DRW()
 {
 	p("SPRITE_D");
-	uint8_t x = (opcode & 0x0F00) >> 8;
-	uint8_t y = (opcode & 0x00F0) >> 4;
+	uint8_t x = V[(opcode & 0x0F00) >> 8];
+	uint8_t y = V[(opcode & 0x00F0) >> 4];
 	uint8_t n = opcode & 0x000F;
 	for (uint8_t i = 0; i < n; i++) {
 		uint8_t spriteByte = memory[i + I];
 		for (uint8_t bit = 0; bit < 8; ++bit) {
 			if ((spriteByte & (0x80 >> bit)) != 0) {
-				V[0xF] = display[V[x]][V[y]];
-				display[V[x]][V[y]] ^= 1;
+				uint16_t xc = (x + bit) % 64;
+				uint16_t yc = (y + n) % 32;
+				V[0xF] = display[xc][yc];
+				display[xc][yc] ^= 1;
 			}
 		}
 	}
@@ -305,6 +369,7 @@ void Emulator::p_F_procs()
 
 		case 0x0A: {
 			p("Wants key press!");
+			waiting = true;
 			break;
 		}
 
@@ -328,6 +393,7 @@ void Emulator::p_F_procs()
 
 		case 0x29: {
 			p("FONT_F");
+			I = V[x] * 0x5;
 			break;
 		}
 
@@ -335,8 +401,8 @@ void Emulator::p_F_procs()
 			p("LD_BCD_F");
 			uint16_t val = V[x];
 			memory[I] = val / 100;
-			memory[I+1] = (val - memory[I]) / 10;
-			memory[I+2] = val - memory[I] - memory[I+1];
+			memory[I+1] = (val / 10) % 10; // (val - memory[I] * 100) / 10;
+			memory[I+2] = (val % 100) % 10; //val - memory[I] * 100 - memory[I+1] * 10;
 			break;
 		}
 
@@ -346,6 +412,8 @@ void Emulator::p_F_procs()
 				memory[i + I] = V[i];
 			}
 
+			// I += x + 1;
+
 			break;
 		}
 
@@ -354,6 +422,8 @@ void Emulator::p_F_procs()
 			for (uint8_t i = 0; i < x; i++) {
 				V[i] = memory[i + I];
 			}
+
+			// I += x + 1;
 
 			break;
 		}
