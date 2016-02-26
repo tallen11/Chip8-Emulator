@@ -96,79 +96,10 @@ void Emulator::step()
 {
 	this->fetch();
 	(this->*procs[(opcode & 0xF000) >> 12])();
-	// uint16_t code = (this->opcode & 0xF000) >> 12;
-	// switch (code) {
-	// 	case 0x0:
-	// 		if (opcode == 0x00E0) {
-	// 			// Clear the display
-	// 			std::cout << "Clear display!" << std::endl;
-	// 		} else if (opcode == 0x00EE) {
-	// 			// RETurn from subroutine
-	// 			PC = stack[SP];
-	// 			SP--;
-	// 		} else {
-	// 			// SYS call
-	// 			uint16_t addr = this->getAddress();
-	// 			stack[SP] = PC;
-	// 			SP++;
-	// 			PC = addr;
-	// 		}
-	// 		break;
-
-	// 	case 0x1:
-	// 		PC = this->getAddress();
-	// 		break;
-
-	// 	case 0x2:
-	// 		stack[SP] = PC;
-	// 		SP++;
-	// 		PC = this->getAddress();
-	// 		break;
-
-	// 	case 0x3:
-	// 		uint8_t x = (opcode & 0x0F00) >> 8;
-	// 		uint16_t kk = opcode & 0x00FF
-	// 		if (V[x] == kk) {
-	// 			PC += 2;
-	// 		}
-	// 		break;
-
-	// 	case 0x4:
-	// 		uint8_t x = (opcode & 0x0F00) >> 8;
-	// 		uint16_t kk = opcode & 0x00FF
-	// 		if (V[x] != kk) {
-	// 			PC += 2;
-	// 		}
-	// 		break;
-
-	// 	case 0x5:
-	// 		uint8_t x = (opcode & 0x0F00) >> 8;
-	// 		uint8_t y = (opcode & 0x00F0) >> 4;
-	// 		if (V[x] == V[y]) {
-	// 			PC += 2;
-	// 		}
-	// 		break;
-
-	// 	case 0x6:
-	// 		std::cout << "6 TEST" << std::endl;
-	// 		uint8_t x = (opcode & 0x0F00) >> 8;
-	// 		uint16_t kk = opcode & 0x00FF;
-	// 		V[x] = kk;
-	// 		break;
-
-	// 	case 0x7:
-	// 		uint8_t x = (opcode & 0x0F00) >> 8;
-	// 		uint16_t kk = opcode & 0x00FF;
-	// 		V[x] += kk;
-	// 		break;
-
-	// 	case 0x8:
-	// 		break;
-	// }
 }
 
 
-// #pragma mark - Procedures
+#pragma mark - Procedures
 
 void Emulator::p_0_baseProcs()
 {
@@ -190,37 +121,55 @@ void Emulator::p_0_baseProcs()
 
 void Emulator::p_1_JP()
 {
-
+	PC = this->getAddress();
 }
 
 void Emulator::p_2_CALL()
 {
-
+	stack[SP] = PC;
+	SP++;
+	PC = this->getAddress();
 }
 
 void Emulator::p_3_SE()
 {
-
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint16_t kk = opcode & 0x00FF;
+	if (V[x] == kk) {
+		PC += 2;
+	}
 }
 
 void Emulator::p_4_SNE()
 {
-
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint16_t kk = opcode & 0x00FF;
+	if (V[x] != kk) {
+		PC += 2;
+	}
 }
 
 void Emulator::p_5_SE()
 {
-
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	if (V[x] == V[y]) {
+		PC += 2;
+	}
 }
 
 void Emulator::p_6_LD()
 {
-	
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint16_t kk = opcode & 0x00FF;
+	V[x] = kk;
 }
 
 void Emulator::p_7_ADD()
 {
-
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint16_t kk = opcode & 0x00FF;
+	V[x] += kk;
 }
 
 void Emulator::p_8_procs()
