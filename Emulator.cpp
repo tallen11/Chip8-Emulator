@@ -1,10 +1,13 @@
 #include "Emulator.hpp"
 #include <fstream>
 #include <iostream>
+#include <random>
 
 Emulator::Emulator()
 {
 	this->reset();
+
+	// Set main function pointers
 	procs[0] = &Emulator::p_0_baseProcs;
 	procs[1] = &Emulator::p_1_JP;
 	procs[2] = &Emulator::p_2_CALL;
@@ -21,6 +24,17 @@ Emulator::Emulator()
 	procs[13] = &Emulator::p_D_DRW;
 	procs[14] = &Emulator::p_E_procs;
 	procs[15] = &Emulator::p_F_procs;
+
+	// Set sub procedure function pointers
+	s_procs_8[0] = &Emulator::s_8_LD;
+	s_procs_8[1] = &Emulator::s_8_OR;
+	s_procs_8[2] = &Emulator::s_8_AND;
+	s_procs_8[3] = &Emulator::s_8_XOR;
+	s_procs_8[4] = &Emulator::s_8_ADD;
+	s_procs_8[5] = &Emulator::s_8_SUB;
+	s_procs_8[6] = &Emulator::s_8_SHR;
+	s_procs_8[7] = &Emulator::s_8_SUBN;
+	s_procs_8[8] = &Emulator::s_8_SHL;
 }
 
 Emulator::~Emulator()
@@ -30,6 +44,12 @@ Emulator::~Emulator()
 
 void Emulator::reset()
 {
+	for (uint8_t x = 0; x < 64; ++x) {
+		for (uint8_t y = 0; y < 32; ++y) {
+			display[x][y] = 0;
+		}
+	}
+
 	for (uint16_t i = 0; i < MEMORY_PROGRAM_START; ++i) {
 		this->memory[i] = 0;
 	}
@@ -49,6 +69,9 @@ void Emulator::reset()
 	this->PC = 0;
 	this->SP = 0;
 	this->opcode = 0;
+	this->shouldDraw = false;
+
+	srand(time(NULL));
 }
 
 void Emulator::loadProgram(std::string filename)
@@ -92,8 +115,20 @@ uint16_t Emulator::getAddress()
 	return this->opcode & 0x0FFF;
 }
 
+bool Emulator::getShouldDraw()
+{
+	return shouldDraw;
+}
+
+void Emulator::draw()
+{
+	std::cout << "Drawing!" << std::endl;
+	shouldDraw = false;
+}
+
 void Emulator::step()
 {
+	// std::cout << PC << std::endl;
 	this->fetch();
 	(this->*procs[(opcode & 0xF000) >> 12])();
 }
@@ -119,13 +154,19 @@ void Emulator::p_0_baseProcs()
 	}
 }
 
+void p(std::string msg) {
+	// std::cout << msg << std::endl;
+}
+
 void Emulator::p_1_JP()
 {
+	p("JUMP_1");
 	PC = this->getAddress();
 }
 
 void Emulator::p_2_CALL()
 {
+	p("CALL_2");
 	stack[SP] = PC;
 	SP++;
 	PC = this->getAddress();
@@ -133,8 +174,9 @@ void Emulator::p_2_CALL()
 
 void Emulator::p_3_SE()
 {
+	p("SE_3");
 	uint8_t x = (opcode & 0x0F00) >> 8;
-	uint16_t kk = opcode & 0x00FF;
+	uint8_t kk = opcode & 0x00FF;
 	if (V[x] == kk) {
 		PC += 2;
 	}
@@ -142,8 +184,9 @@ void Emulator::p_3_SE()
 
 void Emulator::p_4_SNE()
 {
+	p("SNE_4");
 	uint8_t x = (opcode & 0x0F00) >> 8;
-	uint16_t kk = opcode & 0x00FF;
+	uint8_t kk = opcode & 0x00FF;
 	if (V[x] != kk) {
 		PC += 2;
 	}
@@ -151,6 +194,7 @@ void Emulator::p_4_SNE()
 
 void Emulator::p_5_SE()
 {
+	p("SE_5");
 	uint8_t x = (opcode & 0x0F00) >> 8;
 	uint8_t y = (opcode & 0x00F0) >> 4;
 	if (V[x] == V[y]) {
@@ -160,54 +204,242 @@ void Emulator::p_5_SE()
 
 void Emulator::p_6_LD()
 {
+	p("LD_6");
 	uint8_t x = (opcode & 0x0F00) >> 8;
-	uint16_t kk = opcode & 0x00FF;
+	uint8_t kk = opcode & 0x00FF;
 	V[x] = kk;
 }
 
 void Emulator::p_7_ADD()
 {
+	p("ADD_7");
 	uint8_t x = (opcode & 0x0F00) >> 8;
-	uint16_t kk = opcode & 0x00FF;
+	uint8_t kk = opcode & 0x00FF;
 	V[x] += kk;
 }
 
 void Emulator::p_8_procs()
 {
-
+	uint8_t index = opcode & 0x000F;
+	if (index == 0xE) {
+		(this->*s_procs_8[8])();
+	} else {
+		(this->*s_procs_8[index])();
+	}
 }
 
 void Emulator::p_9_SNE()
 {
-
+	p("SNE_9");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	if (V[x] != V[y]) {
+		PC += 2;
+	}
 }
 
 void Emulator::p_A_LDI()
 {
-
+	p("LDI_A");
+	I = getAddress();
 }
 
 void Emulator::p_B_JPV()
 {
-
+	p("JPV_B");
+	PC = getAddress() + V[0];
 }
 
 void Emulator::p_C_RND()
 {
-
+	p("RAND_C");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t kk = opcode & 0x00FF;
+	uint8_t rb = rand() % 256;
+	V[x] = rb & kk;
 }
 
 void Emulator::p_D_DRW()
 {
+	p("SPRITE_D");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	uint8_t n = opcode & 0x000F;
+	for (uint8_t i = 0; i < n; i++) {
+		uint8_t spriteByte = memory[i + I];
+		for (uint8_t bit = 0; bit < 8; ++bit) {
+			if ((spriteByte & (0x80 >> bit)) != 0) {
+				V[0xF] = display[V[x]][V[y]];
+				display[V[x]][V[y]] ^= 1;
+			}
+		}
+	}
 
+	shouldDraw = true;
 }
 
 void Emulator::p_E_procs()
 {
-
+	uint8_t least = opcode & 0x00FF;
+	// uint8_t x = (opcode & 0x0F00) >> 8;
+	if (least == 0x9E) {
+		p("PRESSED_E");
+		// if x is pressed, PC += 2
+	} else if (least == 0xA1) {
+		p("NOT PRESSED_E");
+		// if x is NOT pressed, PC += 2
+	}
 }
 
 void Emulator::p_F_procs()
 {
+	// p("Subprocedures_F");
+	uint8_t least = opcode & 0x00FF;
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	switch (least) {
+		case 0x07: {
+			p("LD_RDT_F");
+			V[x] = delayTimer;
+			break;
+		}
 
+		case 0x0A: {
+			p("Wants key press!");
+			break;
+		}
+
+		case 0x15: {
+			p("LD_DT_F");
+			delayTimer = V[x];
+			break;
+		}
+
+		case 0x18: {
+			p("LD_ST_F");
+			soundTimer = V[x];
+			break;
+		}
+
+		case 0x1E: {
+			p("ADD_F");
+			I += V[x];
+			break;
+		}
+
+		case 0x29: {
+			p("FONT_F");
+			break;
+		}
+
+		case 0x33: {
+			p("LD_BCD_F");
+			uint16_t val = V[x];
+			memory[I] = val / 100;
+			memory[I+1] = (val - memory[I]) / 10;
+			memory[I+2] = val - memory[I] - memory[I+1];
+			break;
+		}
+
+		case 0x55: {
+			p("LD_M_F");
+			for (uint8_t i = 0; i < x; i++) {
+				memory[i + I] = V[i];
+			}
+
+			break;
+		}
+
+		case 0x65: {
+			p("LD_R_F");
+			for (uint8_t i = 0; i < x; i++) {
+				V[i] = memory[i + I];
+			}
+
+			break;
+		}
+	}
+}
+
+
+#pragma mark - Subprocedures_8
+
+void Emulator::s_8_LD()
+{
+	p("LD_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[x] = V[y];
+}
+
+void Emulator::s_8_OR()
+{
+	p("OR_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[x] = V[x] | V[y];
+}
+
+void Emulator::s_8_AND()
+{
+	p("AND_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[x] = V[x] & V[y];
+}
+
+void Emulator::s_8_XOR()
+{
+	p("XOR_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[x] = V[x] ^ V[y];
+}
+
+void Emulator::s_8_ADD()
+{
+	p("ADD_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	uint16_t sum = V[x] + V[y];
+	uint8_t truncSum = sum & 0x00FF;
+	V[x] = truncSum;
+	if (sum != truncSum) {
+		V[0xF] = 1;
+	}
+}
+
+void Emulator::s_8_SUB()
+{
+	p("SUB_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[0xF] = V[x] > V[y] ? 1 : 0;
+	V[x] = V[x] - V[y];
+}
+
+void Emulator::s_8_SHR()
+{
+	p("SHR_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	// uint8_t y = (opcode & 0x00F0) >> 4;
+	V[0xF] = V[x] & 1;
+	V[x] /= 2;
+}
+
+void Emulator::s_8_SUBN()
+{
+	p("SUBN_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	uint8_t y = (opcode & 0x00F0) >> 4;
+	V[0xF] = V[y] > V[x] ? 1 : 0;
+	V[x] = V[y] - V[x];
+}
+
+void Emulator::s_8_SHL()
+{
+	p("SHL_8");
+	uint8_t x = (opcode & 0x0F00) >> 8;
+	// uint8_t y = (opcode & 0x00F0) >> 4;
+	V[0xF] = V[x] & 128;
+	V[x] *= 2;
 }
