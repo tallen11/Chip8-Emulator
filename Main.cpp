@@ -8,7 +8,7 @@ int main()
 {
 	Emulator emu;
 	emu.reset();
-	emu.loadProgram("games/INVADERS");
+	emu.loadProgram("games/TETRIS");
 	emu.startDisplay();
 	for (;;)
 	{
@@ -16,6 +16,7 @@ int main()
 		if (emu.getShouldDraw()) {
 			emu.draw();
 		}
+		
 		usleep(1E3);
 	}
 

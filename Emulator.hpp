@@ -28,7 +28,7 @@ private:
 	uint8_t delayTimer;		  // Delay timer register
 	uint8_t soundTimer;		  // Sound timer register
 
-	uint8_t display[64][32];  // Display data
+	uint8_t display[64 * 32]; // Display data
 	bool shouldDraw;		  // Whether or not screen needs to be drawn
 
 	uint16_t PC;			  // Program counter
@@ -71,7 +71,7 @@ private:
 	void s_8_SUBN();
 	void s_8_SHL();
 
-	void inf();
+	void drawBorder();
 
 	uint8_t fontset[80] = { 
   		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0

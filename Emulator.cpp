@@ -8,18 +8,6 @@ void p(std::string msg) {
 	// std::cout << msg << std::endl;
 }
 
-void Emulator::inf()
-{
-	std::cout << "Has prog: " << this->hasProgram << std::endl;
-	std::cout << "I: " << I << std::endl;
-	std::cout << "Delay Timer: " << (int)delayTimer << std::endl;
-	std::cout << "Sound Timer: " << (int)soundTimer << std::endl;
-	std::cout << "PC: " << PC << std::endl;
-	std::cout << "SP: " << (int)SP << std::endl;
-	std::cout << "Opcode: " << opcode << std::endl;
-	std::cout << "Should Draw: " << shouldDraw << std::endl;
-}
-
 Emulator::Emulator()
 {
 	this->reset();
@@ -61,10 +49,8 @@ Emulator::~Emulator()
 
 void Emulator::reset()
 {
-	for (uint8_t x = 0; x < 64; ++x) {
-		for (uint8_t y = 0; y < 32; ++y) {
-			display[x][y] = 0;
-		}
+	for (uint16_t x = 0; x < 64 * 32; ++x) {
+		display[x] = 0;
 	}
 
 	for (uint16_t i = 0; i < MEMORY_END; ++i) {
@@ -141,8 +127,6 @@ void Emulator::fetch()
 	}
 
 	opcode = (instr1 << 8) | instr2;
-
-	// std::cout << PC % 2 << std::endl;
 }
 
 uint16_t Emulator::getAddress()
@@ -159,13 +143,35 @@ void Emulator::draw()
 {
 	for (uint8_t x = 0; x < 64; ++x) {
 		for (uint8_t y = 0; y < 32; ++y) {
-			mvprintw(x, y, display[y][x] == 1 ? "#" : " ");
+			mvaddch(y + 1, x + 1, display[x + y * 64] == 1 ? '#' : ' ');
 		}
 	}
+
+	this->drawBorder();
 
 	refresh();
 
 	shouldDraw = false;
+}
+
+void Emulator::drawBorder()
+{
+	for (uint8_t x = 0; x < 66; ++x) {
+		for (uint8_t y = 0; y < 34; ++y) {
+			if (x == 0 || x == 65) {
+				mvaddch(y, x, ACS_VLINE);
+			}
+
+			if (y == 0 || y == 33) {
+				mvaddch(y, x, ACS_HLINE);
+			}
+		}
+	}
+
+	mvaddch(0, 0, ACS_ULCORNER);
+	mvaddch(33, 0, ACS_LLCORNER);
+	mvaddch(0, 65, ACS_URCORNER);
+	mvaddch(33, 65, ACS_LRCORNER);
 }
 
 void Emulator::step()
@@ -194,24 +200,17 @@ void Emulator::step()
 void Emulator::p_0_baseProcs()
 {
 	if (opcode == 0x00E0) {
-		// Clear the display
-		//std::cout << "Clear display!" << std::endl;
 		p("CLR_0");
-		for (uint8_t x = 0; x < 64; ++x) {
-			for (uint8_t y = 0; y < 32; ++y) {
-				display[x][y] = 0;
-			}
+		for (uint16_t x = 0; x < 64 * 32; ++x) {
+			display[x] = 0;
 		}
 
 		shouldDraw = true;
 	} else if (opcode == 0x00EE) {
-		// RETurn from subroutine
 		p("RET_0");
-		// std::cout << "\t\tstack[SP]: " << stack[SP] << std::endl;
 		SP--;
 		PC = stack[SP];
 	} else {
-		// SYS call
 		p("CALL_0");
 		uint16_t addr = this->getAddress();
 		stack[SP] = PC;
@@ -327,14 +326,17 @@ void Emulator::p_D_DRW()
 	uint8_t x = V[(opcode & 0x0F00) >> 8];
 	uint8_t y = V[(opcode & 0x00F0) >> 4];
 	uint8_t n = opcode & 0x000F;
+	V[0xF] = 0;
 	for (uint8_t i = 0; i < n; i++) {
 		uint8_t spriteByte = memory[i + I];
 		for (uint8_t bit = 0; bit < 8; ++bit) {
 			if ((spriteByte & (0x80 >> bit)) != 0) {
 				uint16_t xc = (x + bit) % 64;
-				uint16_t yc = (y + n) % 32;
-				V[0xF] = display[xc][yc];
-				display[xc][yc] ^= 1;
+				uint16_t yc = (y + i) % 32;
+				if (display[xc + yc * 64] == 1)
+					V[0xF] = 1;
+				
+				display[xc + yc * 64] ^= 1;
 			}
 		}
 	}
